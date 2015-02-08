@@ -21,6 +21,113 @@ try:
 	import cStringIO # For making HTML buffers before writing
 except:
 	import StringIO
+	
+# Define functions
+def get_md_files(directory):
+	"""
+	Get markdown files in a given directory.
+	"""
+	bash_command = ['ls', '-1', '{}'.format(directory)] # Get one-per-line output
+	try:
+		input_dir_files = subprocess.check_output(bash_command).split('\n')
+	except subprocess.CalledProcessError:
+		sys.exit("No Markdown files in this directory: {}".format(args.input_dir))
+	else:
+		# Get only Markdown files
+		md_files = [file for file in input_dir_files if file[-3:] == '.md'] 
+		return md_files
+		
+def prepare_template(template):
+	"""
+	Alter the template file.
+	"""
+	# If there is a template provided, store head and tail for later
+	d = {'total': '', 'head': '', 'tail': ''}
+	try:
+		with open('{}.html'.format(template), 'rU') as f:
+			d['total'] = f.read()
+	except:
+		sys.exit('The template file {}.html doesn\'t exist.'.format(template))
+	else:
+		d['total'] = \
+			d['total'].replace('CSS_FILE','../../../../../{}.css'.format(template))
+		d['total'] = \
+			d['total'].replace('JS_FILE','../../../../../{}.js'.format(template))
+		d['head'] = d['total'].split('INSERT_POST_HERE')[0]
+		d['tail'] = d['total'].split('INSERT_POST_HERE')[1]
+		return d
+		
+def get_file_info(filename):
+	"""
+	Get file metadata as a dictionary.
+	"""
+	d = {'date': {}, 'time': {}}
+	modtime = time.gmtime(os.path.getmtime(input_file))
+	createtime = time.gmtime(os.path.getctime(input_file))
+	d['date']['modified'] = \
+		time.strftime('%Y,%m,%d', modtime).split(',')
+	d['time']['modified'] = \
+		time.strftime('%I,%M,%p', modtime).split(',')
+	d['date']['created'] = \
+		time.strftime('%Y,%m,%d', createtime).split(',')
+	d['time']['created'] = \
+		time.strftime('%I,%M,%p', createtime).split(',')
+	return d
+	
+def md2html(parser, filename, template):
+	"""
+	Convert markdown file to dict of HTML string and file title.
+	"""
+	o = {'title': '', 'html': ''}
+	# Start a new cache
+	cache = cStringIO.StringIO()
+	# Start with template head
+	cache.write('{}'.format(template['head']))
+	# Loop through the lines, coverting to HTML as we go
+	with open(filename, 'rU') as f:
+		for n, line in enumerate(f):
+			cache.write('{}'.format(parser.convert(line)))
+			parser.reset()
+			if n != 0:
+				pass
+			else:
+				# If on title line, use it to create URL slug
+				title_slug = line.rstrip()
+				title_slug = [letter.lower() for letter in title_slug if letter in letters]
+				title_slug = ''.join(title_slug)
+				title_slug = title_slug.split(' ')
+				title_slug = '-'.join([word for word in title_slug if word != ''])
+	# Add tail to cache
+	cache.write('{}'.format(template['tail']))
+	o['title'] = title_slug
+	o['html'] = cache.getvalue()
+	return o
+	
+def html_out(htmldict, outdir, info):
+	"""
+	Writes HTML out into a directory tree.
+	"""
+	# Make output directory
+	output_dir = '{}/{}/{}/{}/{}'.format(
+		outdir, 
+		info['date']['created'][0], 
+		info['date']['created'][1], 
+		info['date']['created'][2], 
+		htmldict['title']
+	)
+	try:
+		os.makedirs(output_dir)
+	except OSError:
+		print '{}/ already exists'.format(output_dir)
+	# Construct output filename
+	output_file = '{}/index.html'.format(output_dir)
+	# Write cache to HTML file
+	with open(output_file, 'w') as f:
+		f.write('{}'.format(html['html']))
+		print 'Wrote: {}'.format(output_file)
+	return output_file
+	
+
 
 # Initialize argparse
 parser = argparse.ArgumentParser(
@@ -78,87 +185,25 @@ parser.add_argument(
 args = parser.parse_args()
 
 # Get all markdown files in input directory
-bash_command = ['ls', '-1', '{}'.format(args.input_dir)] # Get one-per-line output
-try:
-	input_dir_files = subprocess.check_output(bash_command).split('\n')
-except subprocess.CalledProcessError:
-	sys.exit("No Markdown files in this directory: {}".format(args.input_dir))
+md_files = get_md_files(directory=args.input_dir)
 
-# Get only Markdown files
-md_files = [file for file in input_dir_files if file[-3:] == '.md'] 
+# If there is a template, use it
+if args.template:
+	template = prepare_template(template=args.template)
+else:
+	template = {'total': '', 'head': '', 'tail': ''}
 
 # Initialize the Markdown parser
 md_parser = markdown.Markdown()
 
-# If there is a template provided, store head and tail for later
-template = {'total': '','head': '', 'tail': ''}
-if args.template:
-	try:
-		with open('{}.html'.format(args.template), 'rU') as f:
-			template['total'] = f.read()
-	except:
-		sys.exit('The template file {}.html doesn\'t exist.')
-else:
-	pass
-
-template['total'] = \
-	template['total'].replace('CSS_FILE','../../../../../{}.css'.format(args.template))
-template['total'] = \
-	template['total'].replace('JS_FILE','../../../../../{}.js'.format(args.template))
-
-template['head'] = template['total'].split('INSERT_POST_HERE')[0]
-template['tail'] = template['total'].split('INSERT_POST_HERE')[1]
-
 # Go through the MD files and convert to HTML
 for md in md_files:
-	# Make a cache with head will eventually be written to HTML
-	cache = cStringIO.StringIO()
-	cache.write('{}'.format(template['head']))
-	
-	# Get info about this particular input file
 	input_file = '{}/{}'.format(args.input_dir, md)
-	date_modified = \
-		time.strftime('%Y,%m,%d', time.gmtime(os.path.getmtime(input_file))).split(',')
-	time_modified = \
-		time.strftime('%I,%M,%p', time.gmtime(os.path.getmtime(input_file))).split(',')
-	date_created = \
-		time.strftime('%Y,%m,%d', time.gmtime(os.path.getctime(input_file))).split(',')
-	time_created = \
-		time.strftime('%I,%M,%p', time.gmtime(os.path.getctime(input_file))).split(',')
-	
-	# Loop through the lines, coverting to HTML as we go
-	with open(input_file, 'rU') as f:
-		for n, line in enumerate(f):
-			cache.write('{}'.format(md_parser.convert(line)))
-			md_parser.reset()
-			if n != 0:
-				pass
-			else:
-				# If on title line, use it to create URL slug
-				title_slug = line.rstrip()
-				title_slug = [letter.lower() for letter in title_slug if letter in letters]
-				title_slug = ''.join(title_slug)
-				title_slug = title_slug.split(' ')
-				title_slug = '-'.join([word for word in title_slug if word != ''])
-	
-	# Add tail to cache
-	cache.write('{}'.format(template['tail']))
-	
-	# Make output directory
-	output_dir = '{}/{}/{}/{}/{}'.format(
-		args.output_dir, date_created[0], date_created[1], date_created[2], title_slug
-	)
-	try:
-		os.makedirs(output_dir)
-	except OSError:
-		print '{}/ already exists'.format(output_dir)
-	
-	# Construct output filename
-	output_file = '{}/index.html'.format(output_dir)
-	print output_file
-	
-	# Write cache to HTML file
-	with open(output_file, 'w') as f:
-		f.write('{}'.format(cache.getvalue()))
-			
+	# Get info about this particular input file
+	file_info = get_file_info(filename=input_file)
+	# Convert to HTML
+	html = md2html(parser=md_parser, filename=input_file, template=template)
+	# Write to a new file
+	new_file = html_out(htmldict=html, outdir=args.output_dir, info=file_info)
+				
 quit()
