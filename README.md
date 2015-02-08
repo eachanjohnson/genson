@@ -9,6 +9,8 @@ blog directory tree magically appears!
 
 Just upload to your favourite web host, and you're done.
 
+__Why `genson`?__ My surname's Johnson, and this is a _gen_erator. Funny, huh?
+
 
 ## Features
 1. Uses easy Markdown files to create perfect HTML.
