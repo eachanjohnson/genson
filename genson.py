@@ -15,6 +15,7 @@ import time 		# For timestamps and such
 import os			# For getting file metadata
 import subprocess	# For issuing bash commands
 import string 		# To get alphabet
+import sys			# For quitting on error
 letters = string.letters + ' ' 
 try:
 	import cStringIO # For making HTML buffers before writing
@@ -58,7 +59,6 @@ parser.add_argument(
 	'-t',
 	action='store',
 	nargs='?',
-	default='blog_template',
 	type=str,
 	required=False,
 	help='Name of the HTML/CSS/JS templates to be used to generate static pages.',
@@ -98,10 +98,16 @@ if args.template:
 			template['total'] = f.read()
 	except:
 		sys.exit('The template file {}.html doesn\'t exist.')
-	template['head'] = template['total'].split('INSERT_POST_HERE')[0]
-	template['tail'] = template['total'].split('INSERT_POST_HERE')[1]
 else:
 	pass
+
+template['total'] = \
+	template['total'].replace('CSS_FILE','../../../../../{}.css'.format(args.template))
+template['total'] = \
+	template['total'].replace('JS_FILE','../../../../../{}.js'.format(args.template))
+
+template['head'] = template['total'].split('INSERT_POST_HERE')[0]
+template['tail'] = template['total'].split('INSERT_POST_HERE')[1]
 
 # Go through the MD files and convert to HTML
 for md in md_files:
