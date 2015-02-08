@@ -78,11 +78,9 @@ def md2html(parser, filename, template):
 	"""
 	Convert markdown file to dict of HTML string and file title.
 	"""
-	o = {'title': '', 'html': ''}
+	d = {'title': '', 'slug': '', 'html': '', 'md_content': ''}
 	# Start a new cache
 	cache = cStringIO.StringIO()
-	# Start with template head
-	cache.write('{}'.format(template['head']))
 	# Loop through the lines, coverting to HTML as we go
 	with open(filename, 'rU') as f:
 		for n, line in enumerate(f):
@@ -92,16 +90,17 @@ def md2html(parser, filename, template):
 				pass
 			else:
 				# If on title line, use it to create URL slug
-				title_slug = line.rstrip()
-				title_slug = [letter.lower() for letter in title_slug if letter in letters]
-				title_slug = ''.join(title_slug)
-				title_slug = title_slug.split(' ')
-				title_slug = '-'.join([word for word in title_slug if word != ''])
-	# Add tail to cache
-	cache.write('{}'.format(template['tail']))
-	o['title'] = title_slug
-	o['html'] = cache.getvalue()
-	return o
+				title = [letter for letter in line.rstrip() if letter in letters]
+				slug = ''.join([letter.lower() for letter in title])
+				title = ''.join(title)
+				slug = slug.split(' ')
+				slug = '-'.join([word for word in slug if word != ''])
+	d['md_content'] = cache.getvalue()
+	d['title'] = title
+	d['slug'] = slug
+	d['html'] = '{}{}{}'.format(template['head'], d['md_content'], template['tail'])
+	cache.close()
+	return d
 	
 def html_out(htmldict, outdir, info):
 	"""
@@ -113,7 +112,7 @@ def html_out(htmldict, outdir, info):
 		info['date']['created'][0], 
 		info['date']['created'][1], 
 		info['date']['created'][2], 
-		htmldict['title']
+		htmldict['slug']
 	)
 	try:
 		os.makedirs(output_dir)
@@ -123,11 +122,113 @@ def html_out(htmldict, outdir, info):
 	output_file = '{}/index.html'.format(output_dir)
 	# Write cache to HTML file
 	with open(output_file, 'w') as f:
-		f.write('{}'.format(html['html']))
+		f.write('{}'.format(htmldict['html']))
+		print 'Wrote: {}'.format(output_file)
+	return output_file
+
+def toc_update(toc, new, htmldict):
+	"""
+	Adds blog post from filename to a dictionary for making front page and ToC.
+	"""
+	d = {}
+	new_meta = new.split('index.html')[0].split('/')
+	preview = '{}<strong>...</strong>'.format(htmldict['md_content'][:1000])
+	new_post = {'path': new, 'preview': preview, 'title': htmldict['title']}
+	try:
+		d[new_meta[1]][new_meta[2]][new_meta[3]][new_meta[4]] = new_post
+	except KeyError:
+		try:
+			d[new_meta[1]][new_meta[2]][new_meta[3]] = {new_meta[4]: new_post}
+		except KeyError:
+			try:
+				d[new_meta[1]][new_meta[2]] = {
+					new_meta[3]: {new_meta[4]: new_post}
+				}
+			except KeyError:
+				d[new_meta[1]] = {
+					new_meta[2]: {
+						new_meta[3]: {new_meta[4]: new_post}
+					}
+				}
+	return d
+	
+def toc2html(template, toc):
+	"""
+	Converts ToC dict to html, then inserts into template.
+	"""
+	# Make new cache
+	cache = cStringIO.StringIO()
+	# Get list of years, reverse it
+	years = sorted(toc)
+	years.reverse()
+	for year in years:
+		cache.write('<h2>{}</h2>\n'.format(year))
+		months = sorted(toc[year])
+		months.reverse()
+		for month in months:
+			cache.write('<h3>{}</h3>\n'.format(month))
+			days = sorted(toc[year][month])
+			days.reverse()
+			for day in days:
+				cache.write('<h4>{}</h4>\n<ul>\n'.format(day))
+				posts = toc[year][month][day]
+				for post in posts:
+					href = toc[year][month][day][post]['path'].split('/')[1:]
+					href = '/'.join([dir for dir in href if dir != ''])
+					title = toc[year][month][day][post]['title']
+					cache.write('<li><a href="{}" class="contents-item">{}</a></li>\n'.format(href, title))
+				cache.write('\n</ul>\n'.format(year))
+	html_toc = cache.getvalue()
+	cache.close()
+	s = '{}<br><h1>Table of Contents</h1><br><br>\n{}{}'.format(
+		template['head'], 
+		html_toc, 
+		template['tail']
+	)
+	return s
+	
+def toc_out(htmlstr, outdir, filename):
+	"""
+	Writes out table of contents or front page
+	"""
+	# Construct output filename
+	output_file = '{}/{}.html'.format(outdir, filename)
+	# Write cache to HTML file
+	with open(output_file, 'w') as f:
+		f.write('{}'.format(htmlstr))
 		print 'Wrote: {}'.format(output_file)
 	return output_file
 	
-
+def toc2fp(template, toc):
+	"""
+	Converts ToC dict to html for front page, then inserts into template.
+	"""
+	# Make new cache
+	cache = cStringIO.StringIO()
+	# Get list of years, reverse it
+	years = sorted(toc)
+	years.reverse()
+	for year in years:
+		months = sorted(toc[year])
+		months.reverse()
+		for month in months:
+			days = sorted(toc[year][month])
+			days.reverse()
+			for day in days:
+				posts = toc[year][month][day]
+				for post in posts:
+					href = toc[year][month][day][post]['path'].split('/')[1:]
+					href = '/'.join([dir for dir in href if dir != ''])
+					preview = toc[year][month][day][post]['preview']
+					cache.write('{}\n'.format(preview))
+	html_toc = cache.getvalue()
+	cache.close()
+	s = '{}{}{}'.format(
+		template['head'], 
+		html_toc, 
+		template['tail']
+	)
+	return s
 
 # Initialize argparse
 parser = argparse.ArgumentParser(
@@ -196,6 +297,9 @@ else:
 # Initialize the Markdown parser
 md_parser = markdown.Markdown()
 
+# Initialize dict of new posts
+toc = {}
+
 # Go through the MD files and convert to HTML
 for md in md_files:
 	input_file = '{}/{}'.format(args.input_dir, md)
@@ -205,5 +309,15 @@ for md in md_files:
 	html = md2html(parser=md_parser, filename=input_file, template=template)
 	# Write to a new file
 	new_file = html_out(htmldict=html, outdir=args.output_dir, info=file_info)
-				
+	# Update dictionary of new posts
+	toc = toc_update(toc=toc, new=new_file, htmldict=html)
+	
+# Add a table of contents in the blog root
+html_toc = toc2html(template=template, toc=toc)
+toc_file = toc_out(htmlstr=html_toc, outdir=args.output_dir, filename='toc')
+
+# Make a front page in the blog root
+html_fp = toc2fp(template=template, toc=toc)
+fp_file = toc_out(htmlstr=html_fp, outdir=args.output_dir, filename='index')
+			
 quit()
