@@ -62,8 +62,8 @@ def get_file_info(filename):
 	Get file metadata as a dictionary.
 	"""
 	d = {'date': {}, 'time': {}}
-	modtime = time.gmtime(os.path.getmtime(input_file))
-	createtime = time.gmtime(os.path.getctime(input_file))
+	modtime = time.gmtime(os.path.getmtime(filename))
+	createtime = time.gmtime(os.path.getctime(filename))
 	d['date']['modified'] = \
 		time.strftime('%Y,%m,%d', modtime).split(',')
 	d['time']['modified'] = \
@@ -130,9 +130,9 @@ def toc_update(toc, new, htmldict):
 	"""
 	Adds blog post from filename to a dictionary for making front page and ToC.
 	"""
-	d = {}
+	d = toc
 	new_meta = new.split('index.html')[0].split('/')
-	preview = '{}<strong>...</strong>'.format(htmldict['md_content'][:1000])
+	preview = '{}'.format(htmldict['md_content'][:300])
 	new_post = {'path': new, 'preview': preview, 'title': htmldict['title']}
 	try:
 		d[new_meta[1]][new_meta[2]][new_meta[3]][new_meta[4]] = new_post
@@ -180,7 +180,7 @@ def toc2html(template, toc):
 				cache.write('\n</ul>\n'.format(year))
 	html_toc = cache.getvalue()
 	cache.close()
-	s = '{}<br><h1>Table of Contents</h1><br><br>\n{}{}'.format(
+	s = '{}<h1>Table of Contents</h1><br>\n{}{}'.format(
 		template['head'], 
 		html_toc, 
 		template['tail']
@@ -220,7 +220,7 @@ def toc2fp(template, toc):
 					href = toc[year][month][day][post]['path'].split('/')[1:]
 					href = '/'.join([dir for dir in href if dir != ''])
 					preview = toc[year][month][day][post]['preview']
-					cache.write('{}\n'.format(preview))
+					cache.write('<div class="fp-post">\n{}<a href="{}" class="fold">...</a>\n</div>\n'.format(preview, href))
 	html_toc = cache.getvalue()
 	cache.close()
 	s = '{}{}{}'.format(
@@ -229,95 +229,105 @@ def toc2fp(template, toc):
 		template['tail']
 	)
 	return s
-
-# Initialize argparse
-parser = argparse.ArgumentParser(
-	description="""
-This script takes markdown files in the specified directory as input (MUST have 
-extension .md) and converts them to HTML. The new HTML file will be in a directory tree 
-according to year and month, and the filename will be based on the title of the page.
-
-Optionally, the generated HTML code will be inserted into another HTML template. Also 
-optionally, an HTML link contents pages will be generated, also inserted into a 
-template.
-"""
-	)	
-# Add arguments
-parser.add_argument(
-	'-i',
-	action='store',
-	nargs='?',
-	default='.',
-	type=str,
-	required=False,
-	help='Directory containing the Markdown files to be converted.',
-	dest='input_dir'
-)
-parser.add_argument(
-	'-o',
-	action='store',
-	nargs='?',
-	default='blog',
-	type=str,
-	required=False,
-	help='Destination directory for contructing the output tree.',
-	dest='output_dir'
-)
-parser.add_argument(
-	'-t',
-	action='store',
-	nargs='?',
-	type=str,
-	required=False,
-	help='Name of the HTML/CSS/JS templates to be used to generate static pages.',
-	dest='template'
-)
-parser.add_argument(
-	'-c',
-	action='store',
-	nargs='?',
-	default=False,
-	type=bool,
-	required=False,
-	choices=[True, False],
-	help='Should a table of contents be generated?',
-	dest='create_toc'
-)
-args = parser.parse_args()
-
-# Get all markdown files in input directory
-md_files = get_md_files(directory=args.input_dir)
-
-# If there is a template, use it
-if args.template:
-	template = prepare_template(template=args.template)
-else:
-	template = {'total': '', 'head': '', 'tail': ''}
-
-# Initialize the Markdown parser
-md_parser = markdown.Markdown()
-
-# Initialize dict of new posts
-toc = {}
-
-# Go through the MD files and convert to HTML
-for md in md_files:
-	input_file = '{}/{}'.format(args.input_dir, md)
-	# Get info about this particular input file
-	file_info = get_file_info(filename=input_file)
-	# Convert to HTML
-	html = md2html(parser=md_parser, filename=input_file, template=template)
-	# Write to a new file
-	new_file = html_out(htmldict=html, outdir=args.output_dir, info=file_info)
-	# Update dictionary of new posts
-	toc = toc_update(toc=toc, new=new_file, htmldict=html)
 	
-# Add a table of contents in the blog root
-html_toc = toc2html(template=template, toc=toc)
-toc_file = toc_out(htmlstr=html_toc, outdir=args.output_dir, filename='toc')
+def main():
+	# Initialize argparse
+	parser = argparse.ArgumentParser(
+		description="""
+	This script takes markdown files in the specified directory as input (MUST have 
+	extension .md) and converts them to HTML. The new HTML file will be in a directory tree 
+	according to year and month, and the filename will be based on the title of the page.
 
-# Make a front page in the blog root
-html_fp = toc2fp(template=template, toc=toc)
-fp_file = toc_out(htmlstr=html_fp, outdir=args.output_dir, filename='index')
-			
-quit()
+	Optionally, the generated HTML code will be inserted into another HTML template. Also 
+	optionally, an HTML link contents pages will be generated, also inserted into a 
+	template.
+	"""
+		)	
+	# Add arguments
+	parser.add_argument(
+		'-i',
+		action='store',
+		nargs='?',
+		default='.',
+		type=str,
+		required=False,
+		help='Directory containing the Markdown files to be converted.',
+		dest='input_dir'
+	)
+	parser.add_argument(
+		'-o',
+		action='store',
+		nargs='?',
+		default='blog',
+		type=str,
+		required=False,
+		help='Destination directory for contructing the output tree.',
+		dest='output_dir'
+	)
+	parser.add_argument(
+		'-t',
+		action='store',
+		nargs='?',
+		type=str,
+		required=False,
+		help='Name of the HTML/CSS/JS templates to be used to generate static pages.',
+		dest='template'
+	)
+	parser.add_argument(
+		'-c',
+		action='store',
+		nargs='?',
+		default=False,
+		type=bool,
+		required=False,
+		choices=[True, False],
+		help='Should a table of contents be generated?',
+		dest='create_toc'
+	)
+	args = parser.parse_args()
+
+	# Get all markdown files in input directory
+	md_files = get_md_files(directory=args.input_dir)
+
+	# If there is a template, use it
+	if args.template:
+		template = prepare_template(template=args.template)
+	else:
+		template = {'total': '', 'head': '', 'tail': ''}
+
+	# Initialize the Markdown parser
+	md_parser = markdown.Markdown()
+
+	# Initialize dict of new posts
+	toc = {}
+
+	# Go through the MD files and convert to HTML
+	for md in md_files:
+		input_file = '{}/{}'.format(args.input_dir, md)
+		# Get info about this particular input file
+		file_info = get_file_info(filename=input_file)
+		# Convert to HTML
+		html = md2html(parser=md_parser, filename=input_file, template=template)
+		# Write to a new file
+		new_file = html_out(htmldict=html, outdir=args.output_dir, info=file_info)
+		# Update dictionary of new posts
+		toc = toc_update(toc=toc, new=new_file, htmldict=html)
+	
+	# Add a table of contents in the blog root
+	html_toc = toc2html(template=template, toc=toc)
+	toc_file = toc_out(htmlstr=html_toc, outdir=args.output_dir, filename='toc')
+
+	# Make a front page in the blog root
+	html_fp = toc2fp(template=template, toc=toc)
+	fp_file = toc_out(htmlstr=html_fp, outdir=args.output_dir, filename='index')
+		
+	return "\n\nSuccess!\n\n"
+	
+# Boilerplate
+if __name__ == '__main__':
+	try:
+		print main()
+	except KeyboardInterrupt:
+		sys.exit('\n\nGoodbye!\n\n')
+else:
+	pass
