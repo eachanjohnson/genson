@@ -74,18 +74,49 @@ def get_file_info(filename):
 		time.strftime('%I,%M,%p', createtime).split(',')
 	return d
 	
-def md2html(parser, filename, template):
+def md2html(parser, filename, template, info):
 	"""
 	Convert markdown file to dict of HTML string and file title.
 	"""
-	d = {'title': '', 'slug': '', 'html': '', 'md_content': ''}
+	d = {'title': '', 'slug': '', 'html': '', 'md_content': '', 'preview': '', 'info': info}
 	# Start a new cache
 	cache = cStringIO.StringIO()
+	preview_cache = cStringIO.StringIO()
 	# Loop through the lines, coverting to HTML as we go
+	preview = False
 	with open(filename, 'rU') as f:
 		for n, line in enumerate(f):
+			if 'START_PREVIEW' in line:
+				preview = True
+			elif 'END_PREVIEW' in line:
+				preview = False
+			else:
+				pass
+			line = line.replace('START_PREVIEW', '')
+			line = line.replace('END_PREVIEW', '')
+			line = line.replace('DATE_CREATED', '{}-{}-{} at {}:{} {}'.format(
+				info['date']['created'][2],
+				info['date']['created'][1],
+				info['date']['created'][0],
+				info['time']['created'][0],
+				info['time']['created'][1],
+				info['time']['created'][2],
+			))
+			line = line.replace('DATE_MODIFIED', '{}-{}-{} at {}:{} {}'.format(
+				info['date']['modified'][2],
+				info['date']['modified'][1],
+				info['date']['modified'][0],
+				info['time']['modified'][0],
+				info['time']['modified'][1],
+				info['time']['modified'][2],
+			))
 			cache.write('{}'.format(parser.convert(line)))
 			parser.reset()
+			if preview:
+				preview_cache.write('{}'.format(parser.convert(line)))
+				parser.reset()
+			else:
+				pass
 			if n != 0:
 				pass
 			else:
@@ -96,6 +127,7 @@ def md2html(parser, filename, template):
 				slug = slug.split(' ')
 				slug = '-'.join([word for word in slug if word != ''])
 	d['md_content'] = cache.getvalue()
+	d['preview'] = preview_cache.getvalue()
 	d['title'] = title
 	d['slug'] = slug
 	d['html'] = '{}{}{}'.format(template['head'], d['md_content'], template['tail'])
@@ -130,9 +162,10 @@ def toc_update(toc, new, htmldict):
 	"""
 	Adds blog post from filename to a dictionary for making front page and ToC.
 	"""
+	tags = {'<', '>', '/'}
 	d = toc
 	new_meta = new.split('index.html')[0].split('/')
-	preview = '{}'.format(htmldict['md_content'][:300])
+	preview = '{}'.format(htmldict['preview'])
 	new_post = {'path': new, 'preview': preview, 'title': htmldict['title']}
 	try:
 		d[new_meta[1]][new_meta[2]][new_meta[3]][new_meta[4]] = new_post
@@ -220,7 +253,8 @@ def toc2fp(template, toc):
 					href = toc[year][month][day][post]['path'].split('/')[1:]
 					href = '/'.join([dir for dir in href if dir != ''])
 					preview = toc[year][month][day][post]['preview']
-					cache.write('<div class="fp-post">\n{}<a href="{}" class="fold">...</a>\n</div>\n'.format(preview, href))
+					title = toc[year][month][day][post]['title']
+					cache.write('<div class="fp-post">\n<h1><a href="{}" class="fp-title">{}</a></h1>\n{}<a href="{}" class="fold">...</a>\n</div>\n'.format(href, title, preview, href))
 	html_toc = cache.getvalue()
 	cache.close()
 	s = '{}{}{}'.format(
@@ -307,7 +341,7 @@ def main():
 		# Get info about this particular input file
 		file_info = get_file_info(filename=input_file)
 		# Convert to HTML
-		html = md2html(parser=md_parser, filename=input_file, template=template)
+		html = md2html(parser=md_parser, filename=input_file, template=template, info=file_info)
 		# Write to a new file
 		new_file = html_out(htmldict=html, outdir=args.output_dir, info=file_info)
 		# Update dictionary of new posts
