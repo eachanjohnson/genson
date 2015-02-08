@@ -1,6 +1,6 @@
 # genson
 
-* Free yourself from the tyranny of blogging platforms! *
+_Truly own your blog_
 
 `genson` is a static blog generator written in Python. It couldn't be easier to use!
 
@@ -51,6 +51,7 @@ the blog root directory.
 
 ## To do
 1. Throughly test.
-2. Add more pseudo-dynamic features.
-3. Package into `setup.py`.
+2. Add more classes to HTML tags where possible.
+3. Add more pseudo-dynamic features.
+4. Package into `setup.py`.
 
