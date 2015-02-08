@@ -14,6 +14,8 @@ import markdown		# For interpreting markdown files
 import time 		# For timestamps and such
 import os			# For getting file metadata
 import subprocess	# For issuing bash commands
+import string 		# To get alphabet
+letters = string.letters + ' ' 
 try:
 	import cStringIO # For making HTML buffers before writing
 except:
@@ -96,18 +98,42 @@ for md in md_files:
 	# Get info about this particular input file
 	input_file = '{}/{}'.format(args.input_dir, md)
 	date_modified = \
-		time.strftime('%Y,%m,%d:%I,%M,%p', time.gmtime(os.path.getmtime(input_file)))
+		time.strftime('%Y,%m,%d', time.gmtime(os.path.getmtime(input_file))).split(',')
+	time_modified = \
+		time.strftime('%I,%M,%p', time.gmtime(os.path.getmtime(input_file))).split(',')
 	date_created = \
-		time.strftime('%Y,%m,%d:%I,%M,%p', time.gmtime(os.path.getctime(input_file)))
-	
-	# Construct output filename
-	output_file = '{}/{}.html'.format(args.output_dir, md.split('.md')[0])
+		time.strftime('%Y,%m,%d', time.gmtime(os.path.getctime(input_file))).split(',')
+	time_created = \
+		time.strftime('%I,%M,%p', time.gmtime(os.path.getctime(input_file))).split(',')
 	
 	# Loop through the lines, coverting to HTML as we go
 	with open(input_file, 'rU') as f:
-		for line in f:
+		for n, line in enumerate(f):
 			cache.write('{}'.format(md_parser.convert(line)))
 			md_parser.reset()
+			if n != 0:
+				pass
+			else:
+				title_slug = line.rstrip()
+				title_slug = [letter.lower() for letter in title_slug if letter in letters]
+				title_slug = ''.join(title_slug)
+				title_slug = title_slug.split(' ')
+				title_slug = '-'.join(title_slug)
+	
+	# Make output directory
+	output_dir = '{}/{}/{}/{}'.format(
+		args.output_dir, date_created[0], date_created[1], date_created[2]
+	)
+	try:
+		os.makedirs(output_dir)
+	except OSError:
+		print '{} already exists'.format(output_dir)
+	
+	# Construct output filename
+	output_file = '{}/{}.html'.format(output_dir, title_slug)
+	print output_file
+	
+	# Write cache to HTML file
 	with open(output_file, 'w') as f:
 		f.write('{}'.format(cache.getvalue()))
 			
