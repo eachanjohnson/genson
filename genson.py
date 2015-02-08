@@ -307,17 +307,6 @@ def main():
 		help='Name of the HTML/CSS/JS templates to be used to generate static pages.',
 		dest='template'
 	)
-	parser.add_argument(
-		'-c',
-		action='store',
-		nargs='?',
-		default=False,
-		type=bool,
-		required=False,
-		choices=[True, False],
-		help='Should a table of contents be generated?',
-		dest='create_toc'
-	)
 	args = parser.parse_args()
 
 	# Get all markdown files in input directory

@@ -1,2 +1,56 @@
 # genson
-Static web site generator written in python.
+
+* Free yourself from the tyranny of blogging platforms! *
+
+`genson` is a static blog generator written in Python. It couldn't be easier to use!
+
+Simply write your blog posts in easy-to-use Markdown, then do `python genson.py` and a
+blog directory tree magically appears! 
+
+Just upload to your favourite web host, and you're done.
+
+
+## Features
+1. Uses easy Markdown files to create perfect HTML.
+2. Organizes your blog in a neat directory tree.
+3. Auto-creates a table of contents and blog front page.
+4. Incorporates existing templates and maintains links to JavaScript and CSS.
+
+## Requirements
+1. Python 2.\*
+2. Ability to `cd` in the Terminal.
+
+## Instructions
+1. Keep the file `genson.py` in the root directory of your website.
+2. Write a blog post in Markdown. Try it out [here](http://spec.commonmark.org/dingus/).
+3. The first line of your post must be the title.
+4. You can include the dates and times of creation and editing of the post by entering 
+`DATE_CREATED` and `DATE_MODIFIED` where you want them on the page.
+5. Indicate what part, if any, you want to be the preview on your front page with two 
+lines, one saying `START_PREVIEW`, the other `END_PREVIEW`.
+6. Save your post with the Markdown file extension, `.md`, in the root directory of your
+website.
+7. Gather any HTML templates (if using them) and their resources (JS and CSS) into the 
+root directory, and name them `template.html`, `template.js`, and `template.css`.
+8. In the HTML template, replace the JS and CSS paths with `JS_FILE` and `CSS_FILE`.
+9. In the HTML template, where you want the blog post to go, enter `INSERT_POST_HERE`.
+10. In the terminal, `cd` to the root directory of your website.
+11. If you're using the templates, do `python genson.py -t template`.
+12. If not using a template, do `python genson.py`.
+13. If the last line in the Terminal was `Success!`, then everything should have gone 
+well.
+14. Voila! You should have a new directory called `blog` containing the Table of Contents
+in `toc.html`, the front page in `index.html`, and your individual posts in the 
+sub-directories.
+
+## Advanced use
+Try `python genson.py -h` to see more advanced options.
+
+The locations of the Markdown files and templates can be specified, as well as the name of 
+the blog root directory.
+
+## To do
+1. Throughly test.
+2. Add more pseudo-dynamic features.
+3. Package into `setup.py`.
+
