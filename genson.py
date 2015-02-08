@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
-# This script takes markdown files in the specified directory as input (MUST have 
-# extension .md) and converts them to HTML. The new HTML file will be in a directory tree 
-# according to year and month, and the filename will be based on the title of the page.
-# 
-# Optionally, the generated HTML code will be inserted into another HTML template. Also 
-# optionally, an HTML link contents pages will be generated, also inserted into a 
-# template.
+"""This script takes markdown files in the specified directory as input (MUST have 
+extension .md) and converts them to HTML. The new HTML file will be in a directory tree 
+according to year and month, and the filename will be based on the title of the page.
+
+Optionally, the generated HTML code will be inserted into another HTML template. Also 
+optionally, an HTML link contents pages will be generated, also inserted into a 
+template."""
 
 # Import things we need
 import argparse		# For getting command line arguments
@@ -90,10 +90,24 @@ md_files = [file for file in input_dir_files if file[-3:] == '.md']
 # Initialize the Markdown parser
 md_parser = markdown.Markdown()
 
+# If there is a template provided, store head and tail for later
+template = {'total': '','head': '', 'tail': ''}
+if args.template:
+	try:
+		with open('{}.html'.format(args.template), 'rU') as f:
+			template['total'] = f.read()
+	except:
+		sys.exit('The template file {}.html doesn\'t exist.')
+	template['head'] = template['total'].split('INSERT_POST_HERE')[0]
+	template['tail'] = template['total'].split('INSERT_POST_HERE')[1]
+else:
+	pass
+
 # Go through the MD files and convert to HTML
 for md in md_files:
-	# Make an empty cache which will eventually be written to HTML
+	# Make a cache with head will eventually be written to HTML
 	cache = cStringIO.StringIO()
+	cache.write('{}'.format(template['head']))
 	
 	# Get info about this particular input file
 	input_file = '{}/{}'.format(args.input_dir, md)
@@ -114,23 +128,27 @@ for md in md_files:
 			if n != 0:
 				pass
 			else:
+				# If on title line, use it to create URL slug
 				title_slug = line.rstrip()
 				title_slug = [letter.lower() for letter in title_slug if letter in letters]
 				title_slug = ''.join(title_slug)
 				title_slug = title_slug.split(' ')
-				title_slug = '-'.join(title_slug)
+				title_slug = '-'.join([word for word in title_slug if word != ''])
+	
+	# Add tail to cache
+	cache.write('{}'.format(template['tail']))
 	
 	# Make output directory
-	output_dir = '{}/{}/{}/{}'.format(
-		args.output_dir, date_created[0], date_created[1], date_created[2]
+	output_dir = '{}/{}/{}/{}/{}'.format(
+		args.output_dir, date_created[0], date_created[1], date_created[2], title_slug
 	)
 	try:
 		os.makedirs(output_dir)
 	except OSError:
-		print '{} already exists'.format(output_dir)
+		print '{}/ already exists'.format(output_dir)
 	
 	# Construct output filename
-	output_file = '{}/{}.html'.format(output_dir, title_slug)
+	output_file = '{}/index.html'.format(output_dir)
 	print output_file
 	
 	# Write cache to HTML file
