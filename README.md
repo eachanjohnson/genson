@@ -54,6 +54,8 @@ the blog root directory.
 ## To do
 1. Throughly test.
 2. Add more classes to HTML tags where possible.
-3. Add more pseudo-dynamic features.
-4. Package into `setup.py`.
+3. Add blog tags.
+4. Add suggested articles.
+5. Search.
+6. Package into `setup.py`.
 
