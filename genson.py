@@ -41,20 +41,15 @@ def prepare_template(template):
 	"""
 	Alter the template file.
 	"""
-	# If there is a template provided, store head and tail for later
-	d = {'total': '', 'head': '', 'tail': ''}
+	# If there is a template provided, store it
+	d = {'html': '', 'path': ''}
 	try:
 		with open('{}.html'.format(template), 'rU') as f:
-			d['total'] = f.read()
+			d['html'] = f.read()
+			d['path'] = template
 	except:
-		sys.exit('The template file {}.html doesn\'t exist.'.format(template))
+		sys.exit('The template file {}.html doesn\'t exist.'.format(template['path']))
 	else:
-		d['total'] = \
-			d['total'].replace('CSS_FILE','../../../../../{}.css'.format(template))
-		d['total'] = \
-			d['total'].replace('JS_FILE','../../../../../{}.js'.format(template))
-		d['head'] = d['total'].split('INSERT_POST_HERE')[0]
-		d['tail'] = d['total'].split('INSERT_POST_HERE')[1]
 		return d
 		
 def get_file_info(filename):
@@ -81,6 +76,7 @@ def md2html(parser, filename, template, info):
 	d = {'title': '', 'slug': '', 'html': '', 'md_content': '', 'preview': '', 'info': info}
 	# Start a new cache
 	cache = cStringIO.StringIO()
+	cache.write('<div class="blog-post">')
 	preview_cache = cStringIO.StringIO()
 	# Loop through the lines, coverting to HTML as we go
 	preview = False
@@ -94,47 +90,67 @@ def md2html(parser, filename, template, info):
 				pass
 			line = line.replace('START_PREVIEW', '')
 			line = line.replace('END_PREVIEW', '')
-			line = line.replace('DATE_CREATED', '{}-{}-{} at {}:{} {}'.format(
-				info['date']['created'][2],
-				info['date']['created'][1],
-				info['date']['created'][0],
-				info['time']['created'][0],
-				info['time']['created'][1],
-				info['time']['created'][2],
-			))
-			line = line.replace('DATE_MODIFIED', '{}-{}-{} at {}:{} {}'.format(
-				info['date']['modified'][2],
-				info['date']['modified'][1],
-				info['date']['modified'][0],
-				info['time']['modified'][0],
-				info['time']['modified'][1],
-				info['time']['modified'][2],
-			))
-			cache.write('{}'.format(parser.convert(line)))
-			parser.reset()
-			if preview:
-				preview_cache.write('{}'.format(parser.convert(line)))
-				parser.reset()
+			if 'DATE_CREATED' in line or 'DATE_MODIFIED' in line:
+				cache.write('<span class="byline">')
+				line = line.replace('DATE_CREATED', '{}-{}-{} at {}:{} {}'.format(
+					info['date']['created'][2],
+					info['date']['created'][1],
+					info['date']['created'][0],
+					info['time']['created'][0],
+					info['time']['created'][1],
+					info['time']['created'][2]
+				))
+				line = line.replace('DATE_MODIFIED', '{}-{}-{} at {}:{} {}'.format(
+					info['date']['modified'][2],
+					info['date']['modified'][1],
+					info['date']['modified'][0],
+					info['time']['modified'][0],
+					info['time']['modified'][1],
+					info['time']['modified'][2]
+				))
+				try:
+					cache.write('{}'.format(parser.convert(line)))
+				except UnicodeDecodeError as e:
+					sys.exit(
+						'\nError parsing Markdown on line {}:\n{}\n{}'.format(n, line, e)
+					)
+				else:
+					parser.reset()
+				cache.write('</span>')
 			else:
-				pass
-			if n != 0:
-				pass
-			else:
-				# If on title line, use it to create URL slug
-				title = [letter for letter in line.rstrip() if letter in letters]
-				slug = ''.join([letter.lower() for letter in title])
-				title = ''.join(title)
-				slug = slug.split(' ')
-				slug = '-'.join([word for word in slug if word != ''])
+				try:
+					cache.write('{}'.format(parser.convert(line)))
+				except UnicodeDecodeError as e:
+					sys.exit(
+						'\nError parsing Markdown on line {}:\n{}\n{}'.format(n, line, e)
+					)
+				else:
+					parser.reset()
+				if preview:
+					preview_cache.write('{}'.format(parser.convert(line)))
+					parser.reset()
+				else:
+					pass
+				if n != 0:
+					pass
+				else:
+					# If on title line, use it to create URL slug
+					title = [letter for letter in line.rstrip() if letter in letters]
+					slug = ''.join([letter.lower() for letter in title])
+					title = ''.join(title)
+					slug = slug.split(' ')
+					slug = '-'.join([word for word in slug if word != ''])
+	cache.write('</div>')
 	d['md_content'] = cache.getvalue()
 	d['preview'] = preview_cache.getvalue()
 	d['title'] = title
 	d['slug'] = slug
-	d['html'] = '{}{}{}'.format(template['head'], d['md_content'], template['tail'])
+	d['html'] = template['html'].replace('INSERT_POST_HERE', '{}'.format(d['md_content']))
+	d['html'] = d['html'].replace('INSERT_TITLE', '{}'.format(d['title']))
 	cache.close()
 	return d
 	
-def html_out(htmldict, outdir, info):
+def html_out(htmldict, outdir, info, template):
 	"""
 	Writes HTML out into a directory tree.
 	"""
@@ -153,6 +169,8 @@ def html_out(htmldict, outdir, info):
 	# Construct output filename
 	output_file = '{}/index.html'.format(output_dir)
 	# Write cache to HTML file
+	htmldict['html'] = htmldict['html'].replace('CSS_FILE','../../../../../{}.css'.format(template['path']))
+	htmldict['html'] = htmldict['html'].replace('JS_FILE','../../../../../{}.js'.format(template['path']))
 	with open(output_file, 'w') as f:
 		f.write('{}'.format(htmldict['html']))
 		print 'Wrote: {}'.format(output_file)
@@ -166,7 +184,7 @@ def toc_update(toc, new, htmldict):
 	d = toc
 	new_meta = new.split('index.html')[0].split('/')
 	preview = '{}'.format(htmldict['preview'])
-	new_post = {'path': new, 'preview': preview, 'title': htmldict['title']}
+	new_post = {'path': new, 'preview': preview, 'title': htmldict['title'], 'info': htmldict['info']}
 	try:
 		d[new_meta[1]][new_meta[2]][new_meta[3]][new_meta[4]] = new_post
 	except KeyError:
@@ -213,20 +231,24 @@ def toc2html(template, toc):
 				cache.write('\n</ul>\n'.format(year))
 	html_toc = cache.getvalue()
 	cache.close()
-	s = '{}<h1>Table of Contents</h1><br>\n{}{}'.format(
-		template['head'], 
-		html_toc, 
-		template['tail']
+	template_html = template['html'].replace('CSS_FILE', '../{}.css'.format(template['path']))
+	template_html = template_html.replace('JS_FILE', '../{}.js'.format(template['path']))
+	template_html = template_html.replace('INSERT_TITLE', 'Table of contents')
+	s = template['html'].replace(
+		'INSERT_POST_HERE',
+		'<div class="toc"><h1>Table of Contents</h1><br>\n{}\n</div>'.format(html_toc)
 	)
 	return s
 	
-def toc_out(htmlstr, outdir, filename):
+def toc_out(htmlstr, outdir, filename, template):
 	"""
 	Writes out table of contents or front page
 	"""
 	# Construct output filename
 	output_file = '{}/{}.html'.format(outdir, filename)
 	# Write cache to HTML file
+	htmlstr = htmlstr.replace('CSS_FILE','../{}.css'.format(template['path']))
+	htmlstr = htmlstr.replace('JS_FILE','../{}.js'.format(template['path']))
 	with open(output_file, 'w') as f:
 		f.write('{}'.format(htmlstr))
 		print 'Wrote: {}'.format(output_file)
@@ -254,13 +276,23 @@ def toc2fp(template, toc):
 					href = '/'.join([dir for dir in href if dir != ''])
 					preview = toc[year][month][day][post]['preview']
 					title = toc[year][month][day][post]['title']
-					cache.write('<div class="fp-post">\n<h1><a href="{}" class="fp-title">{}</a></h1>\n{}<a href="{}" class="fold">...</a>\n</div>\n'.format(href, title, preview, href))
+					cache.write('<div class="blog-post">\n<span class="byline"><p>{}.{}.{}</p></span>\n<h1><a href="{}" class="fp-title">{}</a></h1>\n{}<p><a href="{}">Read more</a></p>\n</div>\n'.format(
+						toc[year][month][day][post]['info']['date']['created'][2],
+						toc[year][month][day][post]['info']['date']['created'][1],
+						toc[year][month][day][post]['info']['date']['created'][0],
+						href, 
+						title, 
+						preview, 
+						href
+					))
 	html_toc = cache.getvalue()
 	cache.close()
-	s = '{}{}{}'.format(
-		template['head'], 
-		html_toc, 
-		template['tail']
+	template_html = template['html'].replace('CSS_FILE', '../{}.css'.format(template['path']))
+	template_html = template_html.replace('JS_FILE', '../{}.js'.format(template['path']))
+	template_html = template_html.replace('INSERT_TITLE', 'Blog')
+	s = template_html.replace(
+		'INSERT_POST_HERE',
+		'{}'.format(html_toc)
 	)
 	return s
 	
@@ -316,7 +348,7 @@ def main():
 	if args.template:
 		template = prepare_template(template=args.template)
 	else:
-		template = {'total': '', 'head': '', 'tail': ''}
+		template = {'html': '', 'path': ''}
 
 	# Initialize the Markdown parser
 	md_parser = markdown.Markdown()
@@ -332,17 +364,17 @@ def main():
 		# Convert to HTML
 		html = md2html(parser=md_parser, filename=input_file, template=template, info=file_info)
 		# Write to a new file
-		new_file = html_out(htmldict=html, outdir=args.output_dir, info=file_info)
+		new_file = html_out(htmldict=html, outdir=args.output_dir, info=file_info, template=template)
 		# Update dictionary of new posts
 		toc = toc_update(toc=toc, new=new_file, htmldict=html)
 	
 	# Add a table of contents in the blog root
 	html_toc = toc2html(template=template, toc=toc)
-	toc_file = toc_out(htmlstr=html_toc, outdir=args.output_dir, filename='toc')
+	toc_file = toc_out(htmlstr=html_toc, outdir=args.output_dir, filename='toc', template=template)
 
 	# Make a front page in the blog root
 	html_fp = toc2fp(template=template, toc=toc)
-	fp_file = toc_out(htmlstr=html_fp, outdir=args.output_dir, filename='index')
+	fp_file = toc_out(htmlstr=html_fp, outdir=args.output_dir, filename='index', template=template)
 		
 	return "\n\nSuccess!\n\n"
 	
