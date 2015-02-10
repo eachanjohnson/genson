@@ -27,15 +27,15 @@ __Why `genson`?__ My surname's Johnson, and this is a _gen_erator. Funny, huh?
 2. Write a blog post in Markdown. Try it out [here](http://spec.commonmark.org/dingus/).
 3. The first line of your post must be the title.
 4. You can include the dates and times of creation and editing of the post by entering 
-`DATE_CREATED` and `DATE_MODIFIED` where you want them on the page.
+`//genson.created//` and `//genson.modified//` where you want them on the page.
 5. Indicate what part, if any, you want to be the preview on your front page with two 
-lines, one saying `START_PREVIEW`, the other `END_PREVIEW`.
+lines, one saying `//genson.startpreview//`, the other `//genson.endpreview//`.
 6. Save your post with the Markdown file extension, `.md`, in the root directory of your
 website.
 7. Gather any HTML templates (if using them) and their resources (JS and CSS) into the 
 root directory, and name them `template.html`, `template.js`, and `template.css`.
-8. In the HTML template, replace the JS and CSS paths with `JS_FILE` and `CSS_FILE`.
-9. In the HTML template, where you want the blog post to go, enter `INSERT_POST_HERE`.
+8. In the HTML template, replace the JS and CSS paths with `//genson.js//` and `//genson.css//`.
+9. In the HTML template, where you want the blog post to go, enter `//genson.insertpost//`.
 10. In the terminal, `cd` to the root directory of your website.
 11. If you're using the templates, do `python genson.py -t template`.
 12. If not using a template, do `python genson.py`.
