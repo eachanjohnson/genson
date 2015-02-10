@@ -58,7 +58,7 @@ def get_file_info(filename):
 	"""
 	d = {'date': {}, 'time': {}}
 	modtime = time.gmtime(os.path.getmtime(filename))
-	createtime = time.gmtime(os.path.getctime(filename))
+	createtime = time.gmtime(os.path.getbirthtime(filename))
 	d['date']['modified'] = \
 		time.strftime('%Y,%m,%d', modtime).split(',')
 	d['time']['modified'] = \
@@ -82,17 +82,17 @@ def md2html(parser, filename, template, info):
 	preview = False
 	with open(filename, 'rU') as f:
 		for n, line in enumerate(f):
-			if 'START_PREVIEW' in line:
+			if '//genson.startpreview//' in line:
 				preview = True
-			elif 'END_PREVIEW' in line:
+			elif '//genson.endpreview//' in line:
 				preview = False
 			else:
 				pass
-			line = line.replace('START_PREVIEW', '')
-			line = line.replace('END_PREVIEW', '')
-			if 'DATE_CREATED' in line or 'DATE_MODIFIED' in line:
+			line = line.replace('//genson.startpreview//', '')
+			line = line.replace('//genson.endpreview//', '')
+			if '//genson.created//' in line or '//genson.modified//' in line:
 				cache.write('<span class="byline">')
-				line = line.replace('DATE_CREATED', '{}-{}-{} at {}:{} {}'.format(
+				line = line.replace('//genson.created//', '{}-{}-{} at {}:{} {}'.format(
 					info['date']['created'][2],
 					info['date']['created'][1],
 					info['date']['created'][0],
@@ -100,7 +100,7 @@ def md2html(parser, filename, template, info):
 					info['time']['created'][1],
 					info['time']['created'][2]
 				))
-				line = line.replace('DATE_MODIFIED', '{}-{}-{} at {}:{} {}'.format(
+				line = line.replace('//genson.modified//', '{}-{}-{} at {}:{} {}'.format(
 					info['date']['modified'][2],
 					info['date']['modified'][1],
 					info['date']['modified'][0],
@@ -145,8 +145,8 @@ def md2html(parser, filename, template, info):
 	d['preview'] = preview_cache.getvalue()
 	d['title'] = title
 	d['slug'] = slug
-	d['html'] = template['html'].replace('INSERT_POST_HERE', '{}'.format(d['md_content']))
-	d['html'] = d['html'].replace('INSERT_TITLE', '{}'.format(d['title']))
+	d['html'] = template['html'].replace('//genson.content//', '{}'.format(d['md_content']))
+	d['html'] = d['html'].replace('//genson.title//', '{}'.format(d['title']))
 	cache.close()
 	return d
 	
@@ -169,8 +169,8 @@ def html_out(htmldict, outdir, info, template):
 	# Construct output filename
 	output_file = '{}/index.html'.format(output_dir)
 	# Write cache to HTML file
-	htmldict['html'] = htmldict['html'].replace('CSS_FILE','../../../../../{}.css'.format(template['path']))
-	htmldict['html'] = htmldict['html'].replace('JS_FILE','../../../../../{}.js'.format(template['path']))
+	htmldict['html'] = htmldict['html'].replace('//genson.css//','../../../../../{}.css'.format(template['path']))
+	htmldict['html'] = htmldict['html'].replace('//genson.js//','../../../../../{}.js'.format(template['path']))
 	with open(output_file, 'w') as f:
 		f.write('{}'.format(htmldict['html']))
 		print 'Wrote: {}'.format(output_file)
@@ -231,11 +231,11 @@ def toc2html(template, toc):
 				cache.write('\n</ul>\n'.format(year))
 	html_toc = cache.getvalue()
 	cache.close()
-	template_html = template['html'].replace('CSS_FILE', '../{}.css'.format(template['path']))
-	template_html = template_html.replace('JS_FILE', '../{}.js'.format(template['path']))
-	template_html = template_html.replace('INSERT_TITLE', 'Table of contents')
+	template_html = template['html'].replace('//genson.css//', '../{}.css'.format(template['path']))
+	template_html = template_html.replace('//genson.js//', '../{}.js'.format(template['path']))
+	template_html = template_html.replace('//genson.title//', 'Table of contents')
 	s = template['html'].replace(
-		'INSERT_POST_HERE',
+		'//genson.content//',
 		'<div class="toc"><h1>Table of Contents</h1><br>\n{}\n</div>'.format(html_toc)
 	)
 	return s
@@ -247,8 +247,8 @@ def toc_out(htmlstr, outdir, filename, template):
 	# Construct output filename
 	output_file = '{}/{}.html'.format(outdir, filename)
 	# Write cache to HTML file
-	htmlstr = htmlstr.replace('CSS_FILE','../{}.css'.format(template['path']))
-	htmlstr = htmlstr.replace('JS_FILE','../{}.js'.format(template['path']))
+	htmlstr = htmlstr.replace('//genson.css//','../{}.css'.format(template['path']))
+	htmlstr = htmlstr.replace('//genson.js//','../{}.js'.format(template['path']))
 	with open(output_file, 'w') as f:
 		f.write('{}'.format(htmlstr))
 		print 'Wrote: {}'.format(output_file)
@@ -287,11 +287,11 @@ def toc2fp(template, toc):
 					))
 	html_toc = cache.getvalue()
 	cache.close()
-	template_html = template['html'].replace('CSS_FILE', '../{}.css'.format(template['path']))
-	template_html = template_html.replace('JS_FILE', '../{}.js'.format(template['path']))
-	template_html = template_html.replace('INSERT_TITLE', 'Blog')
+	template_html = template['html'].replace('//genson.css//', '../{}.css'.format(template['path']))
+	template_html = template_html.replace('//genson.js//', '../{}.js'.format(template['path']))
+	template_html = template_html.replace('//genson.title//', 'Blog')
 	s = template_html.replace(
-		'INSERT_POST_HERE',
+		'//genson.content//',
 		'{}'.format(html_toc)
 	)
 	return s
