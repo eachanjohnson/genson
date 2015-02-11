@@ -32,9 +32,8 @@ __Why `genson`?__ My surname's Johnson, and this is a _gen_erator. Funny, huh?
 lines, one saying `//genson.startpreview//`, the other `//genson.endpreview//`.
 6. Save your post with the Markdown file extension, `.md`, in the root directory of your
 website.
-7. Gather any HTML templates (if using them) and their resources (JS and CSS) into the 
-root directory, and name them `template.html`, `template.js`, and `template.css`.
-8. In the HTML template, replace the JS and CSS paths with `//genson.js//` and `//genson.css//`.
+7. Gather any HTML templates (if using them) and their resources (JS and CSS) a directory called `template`.
+8. In the HTML template, replace the JS and CSS paths with `//genson.path//`.
 9. In the HTML template, where you want the blog post to go, enter `//genson.insertpost//`.
 10. In the terminal, `cd` to the root directory of your website.
 11. If you're using the templates, do `python genson.py -t template`.
@@ -52,10 +51,9 @@ The locations of the Markdown files and templates can be specified, as well as t
 the blog root directory.
 
 ## To do
-1. Throughly test.
-2. Add more classes to HTML tags where possible.
-3. Add blog tags.
-4. Add suggested articles.
-5. Search.
-6. Package into `setup.py`.
+1. Add more classes to HTML tags where possible.
+2. Add blog tags.
+3. Add suggested articles.
+4. Search.
+5. Package into `setup.py`.
 
