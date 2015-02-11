@@ -60,7 +60,9 @@ class Template(object):
 		self.source_dir = directory
 		self.html_file = self.get_html_filename()
 		self.source_html = open('{}/{}'.format(self.source_dir, self.html_file), 'rU').read()
-		self.path_back = './{}/'.format(self.source_dir)
+		self.path_back_templates = './{}/'.format(self.source_dir)
+		self.path_back_root = './{}/'.format(self.source_dir)
+		self.path_back_other = './{}/'.format(self.source_dir)
 		self.html = self.update_html()
 		
 	def get_html_filename(self):
@@ -87,7 +89,7 @@ class Template(object):
 					Is this correct?: {}/".format(self.source_dir))
 				return None
 		
-	def find_path_back(self, currentdir):
+	def find_path_back_templates(self, currentdir):
 		"""
 		"""
 		relative_path = ''
@@ -97,14 +99,35 @@ class Template(object):
 			start_path.pop()
 			relative_path += '../'
 		relative_path += '../' + '/'.join(target_path) + '/'
-		self.path_back = relative_path
+		self.path_back_templates = relative_path
+		return relative_path
+		
+	def find_path_back_root(self, currentdir):
+		"""
+		"""
+		relative_path = ''
+		target_path = ['']
+		start_path = currentdir.split('/')
+		while len(start_path) > 2 and target_path != start_path:
+			start_path.pop()
+			relative_path += '../'
+		relative_path += '../' + '/'.join(target_path) + '/'
+		self.path_back_root = relative_path
+		return relative_path
+		
+	def find_path_back_other(self, path):
+		"""
+		"""
+		relative_path = path
+		self.path_back_root = relative_path
 		return relative_path
 		
 	def update_html(self):
 		"""
 		"""
 		source = self.source_html
-		self.html = source.replace('//genson.path//', '{}'.format(self.path_back))
+		self.html = source.replace('//genson.path//', '{}'.format(self.path_back_templates))
+		self.html = self.html.replace('//genson.return//', '{}'.format(self.path_back_root))
 		return self.html
 		
 		
@@ -232,7 +255,8 @@ class BlogPost(object):
 		"""
 		"""
 		# Get template
-		template.find_path_back(self.path)
+		template.find_path_back_templates(self.path)
+		template.find_path_back_root(self.path)
 		template.update_html()
 		t = template.html
 		# Insert post html
@@ -385,7 +409,8 @@ class TableOfContents(object):
 		"""
 		"""
 		# Get template
-		template.find_path_back(self.root)
+		template.find_path_back_templates(self.root)
+		template.find_path_back_other('../../')
 		template.update_html()
 		t = template.html
 		post = html
