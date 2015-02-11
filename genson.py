@@ -111,7 +111,7 @@ class Template(object):
 		while len(start_path) > 2 and target_path != start_path:
 			start_path.pop()
 			relative_path += '../'
-		relative_path += '../' + '/'.join(target_path) + '/'
+		relative_path += '../' + '/'.join(target_path)
 		self.path_back_root = relative_path
 		return relative_path
 		
@@ -410,7 +410,7 @@ class TableOfContents(object):
 		"""
 		# Get template
 		template.find_path_back_templates(self.root)
-		template.find_path_back_other('../../')
+		template.find_path_back_other('../')
 		template.update_html()
 		t = template.html
 		post = html
