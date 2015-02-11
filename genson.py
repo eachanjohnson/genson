@@ -22,280 +22,389 @@ try:
 except:
 	import StringIO
 	
-# Define functions
-def get_md_files(directory):
+# Define objects
+class MarkdownFiles(object):
 	"""
-	Get markdown files in a given directory.
+	Represents the markdown files in a directory.
 	"""
-	bash_command = ['ls', '-1', '{}'.format(directory)] # Get one-per-line output
-	try:
-		input_dir_files = subprocess.check_output(bash_command).split('\n')
-	except subprocess.CalledProcessError:
-		sys.exit("No Markdown files in this directory: {}".format(args.input_dir))
-	else:
-		# Get only Markdown files
-		md_files = [file for file in input_dir_files if file[-3:] == '.md'] 
-		return md_files
+	def __init__(self, directory):
+		self.source_dir = directory
+		self.filenames = self.get_filenames()
 		
-def prepare_template(template):
+	def get_filenames(self):
+		"""
+		Get markdown files in a given directory.
+		"""
+		bash_command = ['ls', '-1', '{}'.format(self.source_dir)] # Get one-per-line output
+		try:
+			input_dir_files = subprocess.check_output(bash_command).split('\n')
+		except subprocess.CalledProcessError:
+			sys.exit("!!! Error in directory. Is this correct?: {}".format(self.source_dir))
+			return None
+		else:
+			# Get only Markdown files
+			md_files = [f for f in input_dir_files if f[-3:] == '.md']
+			if len(md_files) > 0: 
+				return md_files
+			else:
+				sys.exit("!!! Warning: No Markdown files in this directory: \
+					{}".format(self.source_dir))
+				return None
+		
+
+class Template(object):
 	"""
-	Alter the template file.
+	Represents the template into which will be inserted the post and any modifications.
 	"""
-	# If there is a template provided, store it
-	d = {'html': '', 'path': ''}
-	try:
-		with open('{}.html'.format(template), 'rU') as f:
-			d['html'] = f.read()
-			d['path'] = template
-	except:
-		sys.exit('The template file {}.html doesn\'t exist.'.format(template['path']))
-	else:
+	def __init__(self, directory):
+		self.source_dir = directory
+		self.html_file = self.get_html_filename()
+		self.source_html = open('{}/{}'.format(self.source_dir, self.html_file), 'rU').read()
+		self.path_back = './{}/'.format(self.source_dir)
+		self.html = self.update_html()
+		
+	def get_html_filename(self):
+		"""
+		"""
+		bash_command = ['ls', '-1', '{}'.format(self.source_dir)] # Get one-per-line output
+		try:
+			input_dir_files = subprocess.check_output(bash_command).split('\n')
+		except subprocess.CalledProcessError:
+			sys.exit("Warning: No files in template directory. \
+				Is this correct?: {}/".format(self.source_dir))
+			return None
+		else:
+			# Get only HTML files
+			html_files = [f for f in input_dir_files if f[-5:] == '.html']
+			if len(html_files) > 0: 
+				if len(html_files) != 1:
+					sys.exit("!!! Warning: More than one HTML file in template directory. \
+						Is this correct?: {}/".format(', '.join(html_files)))
+				else:
+					return html_files[0]	
+			else:
+				sys.exit("!!! Warning: No HTML files in this directory. \
+					Is this correct?: {}/".format(self.source_dir))
+				return None
+		
+	def find_path_back(self, currentdir):
+		"""
+		"""
+		relative_path = ''
+		target_path = self.source_dir.split('/')
+		start_path = currentdir.split('/')
+		while len(start_path) > 1 and target_path != start_path:
+			start_path.pop()
+			relative_path += '../'
+		relative_path += '../' + '/'.join(target_path) + '/'
+		self.path_back = relative_path
+		return relative_path
+		
+	def update_html(self):
+		"""
+		"""
+		source = self.source_html
+		self.html = source.replace('//genson.path//', '{}'.format(self.path_back))
+		return self.html
+		
+		
+class BlogPost(object):
+	"""
+	Represents an individual blog post.
+	"""
+	def __init__(self, markdown, rootdir, parser, template):
+		self.sourcefile = markdown
+		self.timestamp = self.get_time()
+		self.root_path = rootdir
+		self.md = open(markdown, 'rU').read()
+		self.preview = self.get_preview()
+		self.title = self.get_title()
+		self.slug = self.get_slug()
+		self.path = self.make_path()
+		self.parser = parser
+		self.preview_html = self.converter('.genson-preview.temp', 'preview')
+		self.post_html = self.converter(self.sourcefile, 'blog-post')
+		self.template = template
+		self.html = self.construct_page(self.template)
+		self.outputfile = self.write_out()
+		subprocess.call(['rm', '.genson-preview.temp'])
+		
+	def get_time(self):
+		"""
+		Get file metadata as a dictionary.
+		"""
+		d = {'date': {}, 'time': {}}
+		modtime = time.gmtime(os.path.getmtime(self.sourcefile))
+		createtime = time.gmtime(os.path.getctime(self.sourcefile))
+		d['date']['modified'] = \
+			time.strftime('%Y,%m,%d', modtime).split(',')
+		d['time']['modified'] = \
+			time.strftime('%I,%M,%p', modtime).split(',')
+		d['date']['created'] = \
+			time.strftime('%Y,%m,%d', createtime).split(',')
+		d['time']['created'] = \
+			time.strftime('%I,%M,%p', createtime).split(',')
 		return d
+			
+	def make_path(self):
+		"""
+		"""
+		# Make output directory
+		output_dir = '{}/{}/{}/{}/{}'.format(
+			self.root_path, 
+			self.timestamp['date']['created'][0], 
+			self.timestamp['date']['created'][1], 
+			self.timestamp['date']['created'][2], 
+			self.slug
+		)
+		try:
+			os.makedirs(output_dir)
+		except OSError:
+			print '{} already exists'.format(output_dir)
+		return output_dir
 		
-def get_file_info(filename):
-	"""
-	Get file metadata as a dictionary.
-	"""
-	d = {'date': {}, 'time': {}}
-	modtime = time.gmtime(os.path.getmtime(filename))
-	createtime = time.gmtime(os.path.getbirthtime(filename))
-	d['date']['modified'] = \
-		time.strftime('%Y,%m,%d', modtime).split(',')
-	d['time']['modified'] = \
-		time.strftime('%I,%M,%p', modtime).split(',')
-	d['date']['created'] = \
-		time.strftime('%Y,%m,%d', createtime).split(',')
-	d['time']['created'] = \
-		time.strftime('%I,%M,%p', createtime).split(',')
-	return d
+	def get_preview(self):
+		"""
+		"""
+		cache = cStringIO.StringIO()
+		with open(self.sourcefile, 'rU') as f:
+			in_preview = False
+			for line in f:
+				if '//genson.startpreview//' in line:
+					in_preview = True
+				elif '//genson.endpreview//' in line:
+					in_preview = False
+				else:
+					if in_preview:
+						cache.write('{}'.format(line))
+					else:
+						pass
+		s = cache.getvalue()
+		cache.close()
+		with open('.genson-preview.temp', 'w') as f:
+			f.write(s)
+		return s
+		
+	def converter(self, markdown, mode):
+		"""
+		"""
+		cache = cStringIO.StringIO()
+		cache.write('<div class="{}">'.format(mode))
+		# Loop through the lines, coverting to HTML as we go
+		with open(markdown, 'rU') as f:
+			for n, line in enumerate(f):
+				try:
+					cache.write('{}'.format(self.parser.convert(line)))
+				except UnicodeDecodeError as e:
+					sys.exit(
+						'\nError parsing Markdown on line {}:\n{}\n{}'.format(n, line, e)
+					)
+				else:
+					self.parser.reset()					
+		cache.write('</div>')
+		s = cache.getvalue()
+		cache.close()
+		s = s.replace('//genson.startpreview//', '')
+		s = s.replace('//genson.endpreview//', '')
+		s = s.replace(
+			'//genson.created//', 
+			'<span class="byline">\n{}-{}-{} at {}:{} {}\n</span>'.format(
+			self.timestamp['date']['created'][2],
+			self.timestamp['date']['created'][1],
+			self.timestamp['date']['created'][0],
+			self.timestamp['time']['created'][0],
+			self.timestamp['time']['created'][1],
+			self.timestamp['time']['created'][2]
+		))
+		s = s.replace(
+			'//genson.modified//', 
+			'<span class="byline">\n{}-{}-{} at {}:{} {}\n</span>'.format(
+			self.timestamp['date']['modified'][2],
+			self.timestamp['date']['modified'][1],
+			self.timestamp['date']['modified'][0],
+			self.timestamp['time']['modified'][0],
+			self.timestamp['time']['modified'][1],
+			self.timestamp['time']['modified'][2]
+		))
+		return s
+		
+	def construct_page(self, template):
+		"""
+		"""
+		# Get template
+		template.find_path_back(self.path)
+		template.update_html()
+		t = template.html
+		# Insert post html
+		page = t.replace('//genson.insertpost//', self.post_html)
+		page = page.replace('//genson.title//', self.title)
+		return page
 	
-def md2html(parser, filename, template, info):
-	"""
-	Convert markdown file to dict of HTML string and file title.
-	"""
-	d = {'title': '', 'slug': '', 'html': '', 'md_content': '', 'preview': '', 'info': info}
-	# Start a new cache
-	cache = cStringIO.StringIO()
-	cache.write('<div class="blog-post">')
-	preview_cache = cStringIO.StringIO()
-	# Loop through the lines, coverting to HTML as we go
-	preview = False
-	with open(filename, 'rU') as f:
-		for n, line in enumerate(f):
-			if '//genson.startpreview//' in line:
-				preview = True
-			elif '//genson.endpreview//' in line:
-				preview = False
-			else:
-				pass
-			line = line.replace('//genson.startpreview//', '')
-			line = line.replace('//genson.endpreview//', '')
-			if '//genson.created//' in line or '//genson.modified//' in line:
-				cache.write('<span class="byline">')
-				line = line.replace('//genson.created//', '{}-{}-{} at {}:{} {}'.format(
-					info['date']['created'][2],
-					info['date']['created'][1],
-					info['date']['created'][0],
-					info['time']['created'][0],
-					info['time']['created'][1],
-					info['time']['created'][2]
-				))
-				line = line.replace('//genson.modified//', '{}-{}-{} at {}:{} {}'.format(
-					info['date']['modified'][2],
-					info['date']['modified'][1],
-					info['date']['modified'][0],
-					info['time']['modified'][0],
-					info['time']['modified'][1],
-					info['time']['modified'][2]
-				))
-				try:
-					cache.write('{}'.format(parser.convert(line)))
-				except UnicodeDecodeError as e:
-					sys.exit(
-						'\nError parsing Markdown on line {}:\n{}\n{}'.format(n, line, e)
-					)
-				else:
-					parser.reset()
-				cache.write('</span>')
-			else:
-				try:
-					cache.write('{}'.format(parser.convert(line)))
-				except UnicodeDecodeError as e:
-					sys.exit(
-						'\nError parsing Markdown on line {}:\n{}\n{}'.format(n, line, e)
-					)
-				else:
-					parser.reset()
-				if preview:
-					preview_cache.write('{}'.format(parser.convert(line)))
-					parser.reset()
-				else:
-					pass
-				if n != 0:
-					pass
-				else:
+	def get_title(self):
+		"""
+		"""
+		title = ''
+		with open(self.sourcefile, 'rU') as f:
+			for n, line in enumerate(f):
+				if n == 0:
 					# If on title line, use it to create URL slug
 					title = [letter for letter in line.rstrip() if letter in letters]
-					slug = ''.join([letter.lower() for letter in title])
 					title = ''.join(title)
-					slug = slug.split(' ')
-					slug = '-'.join([word for word in slug if word != ''])
-	cache.write('</div>')
-	d['md_content'] = cache.getvalue()
-	d['preview'] = preview_cache.getvalue()
-	d['title'] = title
-	d['slug'] = slug
-	d['html'] = template['html'].replace('//genson.content//', '{}'.format(d['md_content']))
-	d['html'] = d['html'].replace('//genson.title//', '{}'.format(d['title']))
-	cache.close()
-	return d
-	
-def html_out(htmldict, outdir, info, template):
-	"""
-	Writes HTML out into a directory tree.
-	"""
-	# Make output directory
-	output_dir = '{}/{}/{}/{}/{}'.format(
-		outdir, 
-		info['date']['created'][0], 
-		info['date']['created'][1], 
-		info['date']['created'][2], 
-		htmldict['slug']
-	)
-	try:
-		os.makedirs(output_dir)
-	except OSError:
-		print '{}/ already exists'.format(output_dir)
-	# Construct output filename
-	output_file = '{}/index.html'.format(output_dir)
-	# Write cache to HTML file
-	htmldict['html'] = htmldict['html'].replace('//genson.css//','../../../../../{}.css'.format(template['path']))
-	htmldict['html'] = htmldict['html'].replace('//genson.js//','../../../../../{}.js'.format(template['path']))
-	with open(output_file, 'w') as f:
-		f.write('{}'.format(htmldict['html']))
-		print 'Wrote: {}'.format(output_file)
-	return output_file
+					break
+				else:
+					pass		
+		return title
+		
+	def get_slug(self):
+		"""
+		"""
+		slug = ''.join([letter.lower() for letter in self.title])
+		slug = slug.split(' ')
+		slug = '-'.join([word for word in slug if word != ''])
+		return slug
+		
+	def write_out(self):
+		"""
+		"""
+		filename = '{}/index.html'.format(self.path)
+		with open(filename, 'w') as f:
+			f.write('{}'.format(self.html))
+			print('Wrote blog post: {}'.format(filename))
+		return filename
+		
 
-def toc_update(toc, new, htmldict):
+class TableOfContents(object):
 	"""
-	Adds blog post from filename to a dictionary for making front page and ToC.
+	Represents a table of contents data structure. Constructs from a list of blog posts.
 	"""
-	tags = {'<', '>', '/'}
-	d = toc
-	new_meta = new.split('index.html')[0].split('/')
-	preview = '{}'.format(htmldict['preview'])
-	new_post = {'path': new, 'preview': preview, 'title': htmldict['title'], 'info': htmldict['info']}
-	try:
-		d[new_meta[1]][new_meta[2]][new_meta[3]][new_meta[4]] = new_post
-	except KeyError:
-		try:
-			d[new_meta[1]][new_meta[2]][new_meta[3]] = {new_meta[4]: new_post}
-		except KeyError:
+	def __init__(self, posts, rootdir, template):
+		self.root = rootdir
+		self.post_list = posts
+		self.template = template
+		self.time_toc = self.generate_time_toc()
+		self.time_toc_html = self.generate_time_toc_html()
+		self.fp_html = self.generate_fp_html()
+		#self.index = self.generate_search_index()
+		self.html = self.construct_page(self.fp_html, self.template)
+		self.outputfile = self.write_out()
+		
+	def generate_time_toc(self):
+		"""
+		"""
+		toc = {}
+		for post in self.post_list:
+			y = post.timestamp['date']['created'][2]
+			m = post.timestamp['date']['created'][1]
+			d = post.timestamp['date']['created'][0]
 			try:
-				d[new_meta[1]][new_meta[2]] = {
-					new_meta[3]: {new_meta[4]: new_post}
-				}
+				toc[y][m][d].append(post)
 			except KeyError:
-				d[new_meta[1]] = {
-					new_meta[2]: {
-						new_meta[3]: {new_meta[4]: new_post}
+				try:
+					toc[y][m] = {
+						d: [post]
 					}
-				}
-	return d
+				except KeyError:
+					toc[y] = {
+						m: {
+							d: [post]
+						}
+					}
+		return toc
+		
+	def generate_time_toc_html(self):
+		"""
+		"""
+		# Make new cache
+		cache = cStringIO.StringIO()
+		# Get list of years, reverse it
+		years = sorted(self.time_toc)
+		years.reverse()
+		for year in years:
+			cache.write('<h2>{}</h2>\n'.format(year))
+			months = sorted(self.time_toc[year])
+			months.reverse()
+			for month in months:
+				cache.write('<h3>{}</h3>\n'.format(month))
+				days = sorted(self.time_toc[year][month])
+				days.reverse()
+				for day in days:
+					cache.write('<h4>{}</h4>\n<ul>\n'.format(day))
+					posts = self.time_toc[year][month][day]
+					for post in posts:
+						href = post.path.split('/')[1:]
+						href = '/'.join([dir for dir in href if dir != ''])
+						title = post.title
+						cache.write('<li><a href="{}" class="contents-item">{}</a></li>\n'.format(href, title))
+					cache.write('\n</ul>\n'.format(year))
+		s = cache.getvalue()
+		cache.close()
+		return s
 	
-def toc2html(template, toc):
-	"""
-	Converts ToC dict to html, then inserts into template.
-	"""
-	# Make new cache
-	cache = cStringIO.StringIO()
-	# Get list of years, reverse it
-	years = sorted(toc)
-	years.reverse()
-	for year in years:
-		cache.write('<h2>{}</h2>\n'.format(year))
-		months = sorted(toc[year])
-		months.reverse()
-		for month in months:
-			cache.write('<h3>{}</h3>\n'.format(month))
-			days = sorted(toc[year][month])
-			days.reverse()
-			for day in days:
-				cache.write('<h4>{}</h4>\n<ul>\n'.format(day))
-				posts = toc[year][month][day]
-				for post in posts:
-					href = toc[year][month][day][post]['path'].split('/')[1:]
-					href = '/'.join([dir for dir in href if dir != ''])
-					title = toc[year][month][day][post]['title']
-					cache.write('<li><a href="{}" class="contents-item">{}</a></li>\n'.format(href, title))
-				cache.write('\n</ul>\n'.format(year))
-	html_toc = cache.getvalue()
-	cache.close()
-	template_html = template['html'].replace('//genson.css//', '../{}.css'.format(template['path']))
-	template_html = template_html.replace('//genson.js//', '../{}.js'.format(template['path']))
-	template_html = template_html.replace('//genson.title//', 'Table of contents')
-	s = template['html'].replace(
-		'//genson.content//',
-		'<div class="toc"><h1>Table of Contents</h1><br>\n{}\n</div>'.format(html_toc)
-	)
-	return s
+	def generate_fp_html(self):
+		"""
+		Converts ToC dict to html for front page, then inserts into template.
+		"""
+		# Make new cache
+		cache = cStringIO.StringIO()
+		# Get list of years, reverse it
+		years = sorted(self.time_toc)
+		years.reverse()
+		for year in years:
+			months = sorted(self.time_toc[year])
+			months.reverse()
+			for month in months:
+				days = sorted(self.time_toc[year][month])
+				days.reverse()
+				for day in days:
+					posts = self.time_toc[year][month][day]
+					for post in posts:
+						href = post.path.split('/')[1:]
+						href = '/'.join([dir for dir in href if dir != ''])
+						preview = post.preview_html
+						#print preview
+						title = post.title
+						cache.write(
+							'<div class="blog-post">\n\
+							<span class="byline"><p>{}.{}.{}</p></span>\n\
+							<h1><a href="{}" class="fp-title">{}</a></h1>\n\
+							{}<p><a href="{}">Read more</a></p>\n\
+							</div>\n'.format(
+							day,
+							month,
+							year,
+							href, 
+							title, 
+							preview, 
+							href
+						))
+		s = cache.getvalue()
+		cache.close()
+		return s
+		
+	def construct_page(self, html, template):
+		"""
+		"""
+		# Get template
+		template.find_path_back(self.root)
+		template.update_html()
+		t = template.html
+		post = html
+		# Insert post html
+		page = t.replace('//genson.insertpost//', html)
+		page = page.replace('//genson.title//', 'Blog')
+		return page
+		
+	def write_out(self):
+		"""
+		"""	
+		filename = '{}/index.html'.format(self.root)
+		with open(filename, 'w') as f:
+			f.write('{}'.format(self.html))
+			print('Wrote front page: {}'.format(filename))
+		return filename
+		
 	
-def toc_out(htmlstr, outdir, filename, template):
-	"""
-	Writes out table of contents or front page
-	"""
-	# Construct output filename
-	output_file = '{}/{}.html'.format(outdir, filename)
-	# Write cache to HTML file
-	htmlstr = htmlstr.replace('//genson.css//','../{}.css'.format(template['path']))
-	htmlstr = htmlstr.replace('//genson.js//','../{}.js'.format(template['path']))
-	with open(output_file, 'w') as f:
-		f.write('{}'.format(htmlstr))
-		print 'Wrote: {}'.format(output_file)
-	return output_file
-	
-def toc2fp(template, toc):
-	"""
-	Converts ToC dict to html for front page, then inserts into template.
-	"""
-	# Make new cache
-	cache = cStringIO.StringIO()
-	# Get list of years, reverse it
-	years = sorted(toc)
-	years.reverse()
-	for year in years:
-		months = sorted(toc[year])
-		months.reverse()
-		for month in months:
-			days = sorted(toc[year][month])
-			days.reverse()
-			for day in days:
-				posts = toc[year][month][day]
-				for post in posts:
-					href = toc[year][month][day][post]['path'].split('/')[1:]
-					href = '/'.join([dir for dir in href if dir != ''])
-					preview = toc[year][month][day][post]['preview']
-					title = toc[year][month][day][post]['title']
-					cache.write('<div class="blog-post">\n<span class="byline"><p>{}.{}.{}</p></span>\n<h1><a href="{}" class="fp-title">{}</a></h1>\n{}<p><a href="{}">Read more</a></p>\n</div>\n'.format(
-						toc[year][month][day][post]['info']['date']['created'][2],
-						toc[year][month][day][post]['info']['date']['created'][1],
-						toc[year][month][day][post]['info']['date']['created'][0],
-						href, 
-						title, 
-						preview, 
-						href
-					))
-	html_toc = cache.getvalue()
-	cache.close()
-	template_html = template['html'].replace('//genson.css//', '../{}.css'.format(template['path']))
-	template_html = template_html.replace('//genson.js//', '../{}.js'.format(template['path']))
-	template_html = template_html.replace('//genson.title//', 'Blog')
-	s = template_html.replace(
-		'//genson.content//',
-		'{}'.format(html_toc)
-	)
-	return s
-	
+# Define functions		
 def main():
 	# Initialize argparse
 	parser = argparse.ArgumentParser(
@@ -334,55 +443,45 @@ def main():
 		'-t',
 		action='store',
 		nargs='?',
+		default='template',
 		type=str,
 		required=False,
 		help='Name of the HTML/CSS/JS templates to be used to generate static pages.',
 		dest='template'
 	)
 	args = parser.parse_args()
-
+	# Initialize document tree to keep things neat
+	subprocess.call(['rm', '-R', args.output_dir])
 	# Get all markdown files in input directory
-	md_files = get_md_files(directory=args.input_dir)
-
-	# If there is a template, use it
-	if args.template:
-		template = prepare_template(template=args.template)
-	else:
-		template = {'html': '', 'path': ''}
-
+	md_files = MarkdownFiles(directory=args.input_dir)
+	# Gather the template
+	template = Template(directory=args.template)
 	# Initialize the Markdown parser
 	md_parser = markdown.Markdown()
-
-	# Initialize dict of new posts
-	toc = {}
-
+	# Initialize list of blog posts
+	post_list = []
 	# Go through the MD files and convert to HTML
-	for md in md_files:
-		input_file = '{}/{}'.format(args.input_dir, md)
-		# Get info about this particular input file
-		file_info = get_file_info(filename=input_file)
-		# Convert to HTML
-		html = md2html(parser=md_parser, filename=input_file, template=template, info=file_info)
-		# Write to a new file
-		new_file = html_out(htmldict=html, outdir=args.output_dir, info=file_info, template=template)
-		# Update dictionary of new posts
-		toc = toc_update(toc=toc, new=new_file, htmldict=html)
-	
-	# Add a table of contents in the blog root
-	html_toc = toc2html(template=template, toc=toc)
-	toc_file = toc_out(htmlstr=html_toc, outdir=args.output_dir, filename='toc', template=template)
-
-	# Make a front page in the blog root
-	html_fp = toc2fp(template=template, toc=toc)
-	fp_file = toc_out(htmlstr=html_fp, outdir=args.output_dir, filename='index', template=template)
-		
-	return "\n\nSuccess!\n\n"
+	for n in md_files.filenames:
+		# Create blog post from markdown
+		post = BlogPost(
+			markdown='{}/{}'.format(args.input_dir, n), 
+			rootdir=args.output_dir,
+			parser=md_parser,
+			template=template
+		)
+		# Update list of new posts
+		post_list.append(post)
+	# Convert post list to table of contents
+	toc = TableOfContents(posts=post_list, rootdir=args.output_dir, template=template)
+	return None
 	
 # Boilerplate
 if __name__ == '__main__':
 	try:
-		print main()
+		main()
 	except KeyboardInterrupt:
 		sys.exit('\n\nGoodbye!\n\n')
+	else:
+		sys.exit("\n\nSuccess!\n\n")
 else:
 	pass

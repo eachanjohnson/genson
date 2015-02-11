@@ -1,14 +1,14 @@
 # An example of Markdown
 
-Created on DATE_CREATED and last edited on DATE_MODIFIED
+Created on //genson.created// and last edited on DATE_MODIFIED
 
-START_PREVIEW
+//genson.startpreview//
 
 This note demonstrates some of what [Markdown][1] is capable of doing.
 
 *Note: Feel free to play with this page. Unlike regular notes, this doesn't automatically save itself.*
 
-END_PREVIEW
+//genson.endpreview//
 
 ## Basic formatting
 
