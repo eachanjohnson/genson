@@ -16,11 +16,14 @@ import os			# For getting file metadata
 import subprocess	# For issuing bash commands
 import string 		# To get alphabet
 import sys			# For quitting on error
+import stop_words	# For search indexing
+import json			# For writing out the search index
+import re			# For stripping out keywords
 letters = string.letters + ' ' 
 try:
 	import cStringIO # For making HTML buffers before writing
 except:
-	import StringIO
+	import StringIO as cStringIO
 	
 # Define objects
 class MarkdownFiles(object):
@@ -135,7 +138,8 @@ class BlogPost(object):
 	"""
 	Represents an individual blog post.
 	"""
-	def __init__(self, markdown, rootdir, parser, template):
+	def __init__(self, id, markdown, rootdir, parser, template):
+		self.id = id
 		self.sourcefile = markdown
 		self.timestamp = self.get_time()
 		self.root_path = rootdir
@@ -306,11 +310,13 @@ class TableOfContents(object):
 		self.post_list = posts
 		self.template = template
 		self.time_toc = self.generate_time_toc()
+		self.id_toc = self.generate_id_toc()
 		self.time_toc_html = self.generate_time_toc_html()
 		self.fp_html = self.generate_fp_html()
-		#self.index = self.generate_search_index()
+		self.index = self.generate_search_index()
 		self.html = self.construct_page(self.fp_html, self.template)
 		self.outputfile = self.write_out()
+		self.indexfile = self.write_index()
 		
 	def generate_time_toc(self):
 		"""
@@ -334,6 +340,50 @@ class TableOfContents(object):
 						}
 					}
 		return toc
+		
+	def generate_id_toc(self):
+		"""
+		"""
+		toc = {}
+		for post in self.post_list:
+			id = post.id
+			toc[id] = post
+		return toc
+		
+	def generate_search_index(self):
+		"""
+		"""
+		index = {}
+		excluded_chars = {
+			'\#', '_', '*', '/', ',', '.', '\\', 
+			'-', ':', '(', ')', '<', '>', '[', ']', 
+			'`', '1', '2', '3', '4', '5', '6',
+			}
+		stopwords = stop_words.get_stop_words('en') + \
+			[
+				'n', 'genson', 'endpreview', '', 'startpreview', 'com', 
+				'www', 'http', 'created', 'modified'
+			]
+		for post in self.post_list:
+			genson_keywords = re.compile("//genson\.[a-z]*//")
+			stripped_md = ''.join(genson_keywords.split(post.md))
+			stripped_md = stripped_md.replace('\n', ' ')
+			stripped_md = ''.join([char if char in letters else ' ' for char in stripped_md])
+			words = [word for word in stripped_md.split(' ') if word not in stopwords]
+			for word in words:
+				try:
+					index[word.lower()].add(post.id)
+				except KeyError:
+					index[word.lower()] = {post.id}
+		for word in index:
+			index[word] = [{
+				'id': id, 
+				'title': self.id_toc[id].title,
+				'path': self.id_toc[id].path,
+				'preview_html': self.id_toc[id].preview_html,
+				'timestamp': self.id_toc[id].timestamp
+			} for id in index[word]]
+		return index
 		
 	def generate_time_toc_html(self):
 		"""
@@ -428,8 +478,17 @@ class TableOfContents(object):
 			print('Wrote front page: {}'.format(filename))
 		return filename
 		
+	def write_index(self):
+		"""
+		"""	
+		filename = '{}/search_index.json'.format(self.root)
+		with open(filename, 'w') as f:
+			json.dump(self.index, f)
+			print('Wrote search index: {}'.format(filename))
+		return filename
+		
 	
-# Define functions		
+# Define functions	
 def main():
 	# Initialize argparse
 	parser = argparse.ArgumentParser(
@@ -486,10 +545,11 @@ def main():
 	# Initialize list of blog posts
 	post_list = []
 	# Go through the MD files and convert to HTML
-	for n in md_files.filenames:
+	for n, f in enumerate(md_files.filenames):
 		# Create blog post from markdown
 		post = BlogPost(
-			markdown='{}/{}'.format(args.input_dir, n), 
+			id = n,
+			markdown='{}/{}'.format(args.input_dir, f), 
 			rootdir=args.output_dir,
 			parser=md_parser,
 			template=template
