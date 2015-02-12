@@ -1,22 +1,23 @@
 # genson
 
-_Truly own your blog_
+_Truly your own blog. Truly own your blog_
 
 `genson` is a static blog generator written in Python. It couldn't be easier to use!
 
-Simply write your blog posts in easy-to-use Markdown, then do `python genson.py` and a
+Simply write your blog posts in Markdown, then do `python genson.py` and a
 blog directory tree magically appears! 
 
 Just upload to your favourite web host, and you're done.
 
-__Why `genson`?__ My surname's Johnson, and this is a _gen_erator. Funny, huh?
+__Why the name `genson`?__ Message me to find out.
 
 
 ## Features
-1. Uses easy Markdown files to create perfect HTML.
-2. Organizes your blog in a neat directory tree.
-3. Auto-creates a table of contents and blog front page.
-4. Incorporates existing templates and maintains links to JavaScript and CSS.
+1. Uses Markdown files to create perfect HTML.
+2. Organizes your blog's directory tree.
+3. Creates a blog front page of posts.
+4. Creates a JSON-format search index so you can incorporate site search.
+5. Use any HTML, CSS, and JS in a template, in as many files as you want.
 
 ## Requirements
 1. Python 2.\*
@@ -36,13 +37,10 @@ website.
 8. In the HTML template, replace the JS and CSS paths with `//genson.path//`.
 9. In the HTML template, where you want the blog post to go, enter `//genson.insertpost//`.
 10. In the terminal, `cd` to the root directory of your website.
-11. If you're using the templates, do `python genson.py -t template`.
-12. If not using a template, do `python genson.py`.
-13. If the last line in the Terminal was `Success!`, then everything should have gone 
+11. Do `python genson.py -t template`.
+12. If the last line in the Terminal was `Success!`, then everything should have gone 
 well.
-14. Voila! You should have a new directory called `blog` containing the Table of Contents
-in `toc.html`, the front page in `index.html`, and your individual posts in the 
-sub-directories.
+13. Voila! You should have a new directory called `blog` containing the front page and a directory tree of blog posts.
 
 ## Advanced use
 Try `python genson.py -h` to see more advanced options.
@@ -54,6 +52,5 @@ the blog root directory.
 1. Add more classes to HTML tags where possible.
 2. Add blog tags.
 3. Add suggested articles.
-4. Search.
-5. Package into `setup.py`.
+4. Package into `setup.py`.
 
