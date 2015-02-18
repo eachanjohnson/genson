@@ -220,14 +220,19 @@ class BlogPost(object):
 		# Loop through the lines, coverting to HTML as we go
 		with open(markdown, 'rU') as f:
 			for n, line in enumerate(f):
-				try:
-					cache.write('{}'.format(self.parser.convert(line)))
-				except UnicodeDecodeError as e:
-					sys.exit(
-						'\nError parsing Markdown on line {}:\n{}\n{}'.format(n, line, e)
-					)
+				if n != 0:
+					try:
+						cache.write('{}'.format(self.parser.convert(line)))
+					except UnicodeDecodeError as e:
+						sys.exit(
+							'\nError parsing Markdown on line {}:\n{}\n{}'.format(
+								n, line, e
+							)
+						)
+					else:
+						self.parser.reset()
 				else:
-					self.parser.reset()					
+					pass			
 		cache.write('</div>')
 		s = cache.getvalue()
 		cache.close()
