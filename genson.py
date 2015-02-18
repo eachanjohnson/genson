@@ -310,7 +310,8 @@ class TableOfContents(object):
 	"""
 	Represents a table of contents data structure. Constructs from a list of blog posts.
 	"""
-	def __init__(self, posts, rootdir, template):
+	def __init__(self, posts, rootdir, template, name):
+		self.name = name
 		self.root = rootdir
 		self.post_list = posts
 		self.template = template
@@ -362,7 +363,7 @@ class TableOfContents(object):
 		excluded_chars = {
 			'\#', '_', '*', '/', ',', '.', '\\', 
 			'-', ':', '(', ')', '<', '>', '[', ']', 
-			'`', '1', '2', '3', '4', '5', '6',
+			'`', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'
 			}
 		stopwords = stop_words.get_stop_words('en') + \
 			[
@@ -471,7 +472,7 @@ class TableOfContents(object):
 		post = html
 		# Insert post html
 		page = t.replace('//genson.insertpost//', html)
-		page = page.replace('//genson.title//', 'Blog')
+		page = page.replace('//genson.title//', self.name)
 		return page
 		
 	def write_out(self):
@@ -535,8 +536,18 @@ def main():
 		default='template',
 		type=str,
 		required=False,
-		help='Name of the HTML/CSS/JS templates to be used to generate static pages.',
+		help='Path to the HTML/CSS/JS templates to be used to generate static pages.',
 		dest='template'
+	)
+	parser.add_argument(
+		'-n',
+		action='store',
+		nargs='?',
+		default='Blog',
+		type=str,
+		required=False,
+		help='What you want to use as the blog title.',
+		dest='name'
 	)
 	args = parser.parse_args()
 	# Initialize document tree to keep things neat
@@ -562,7 +573,8 @@ def main():
 		# Update list of new posts
 		post_list.append(post)
 	# Convert post list to table of contents
-	toc = TableOfContents(posts=post_list, rootdir=args.output_dir, template=template)
+	toc = TableOfContents(posts=post_list, rootdir=args.output_dir, template=template,
+		name=args.name)
 	return None
 	
 # Boilerplate
