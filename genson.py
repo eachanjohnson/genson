@@ -347,9 +347,9 @@ class TableOfContents(object):
 		"""
 		toc = {}
 		for post in self.post_list:
-			y = post.timestamp['date']['created'][2]
+			y = post.timestamp['date']['created'][0]
 			m = post.timestamp['date']['created'][1]
-			d = post.timestamp['date']['created'][0]
+			d = post.timestamp['date']['created'][2]
 			try:
 				toc[y][m][d].append(post)
 			except KeyError:
