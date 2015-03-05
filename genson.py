@@ -327,8 +327,9 @@ class TableOfContents(object):
 	"""
 	Represents a table of contents data structure. Constructs from a list of blog posts.
 	"""
-	def __init__(self, posts, rootdir, template, name):
+	def __init__(self, posts, rootdir, template, name, subtitle):
 		self.name = name
+		self.subtitle = subtitle
 		self.root = rootdir
 		self.post_list = posts
 		self.template = template
@@ -491,7 +492,7 @@ class TableOfContents(object):
 		# Insert post html
 		page = t.replace('//genson.insertpost//', html)
 		page = page.replace('//genson.title//', self.name)
-		page = page.replace('//genson.subtitle//', '')
+		page = page.replace('//genson.subtitle//', self.subtitle)
 		return page
 		
 	def write_out(self):
@@ -568,6 +569,16 @@ def main():
 		help='What you want to use as the blog title.',
 		dest='name'
 	)
+	parser.add_argument(
+		'-s',
+		action='store',
+		nargs='?',
+		default='',
+		type=str,
+		required=False,
+		help='What you want to use as the blog subtitle.',
+		dest='subtitle'
+	)
 	args = parser.parse_args()
 	# Initialize document tree to keep things neat
 	subprocess.call(['rm', '-R', args.output_dir])
@@ -593,7 +604,7 @@ def main():
 		post_list.append(post)
 	# Convert post list to table of contents
 	toc = TableOfContents(posts=post_list, rootdir=args.output_dir, template=template,
-		name=args.name)
+		name=args.name, subtitle=args.subtitle)
 	return None
 	
 # Boilerplate
