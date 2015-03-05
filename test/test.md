@@ -1,4 +1,5 @@
 # An example of Markdown
+## Subtitle
 
 Created on //genson.created// and last edited on DATE_MODIFIED
 

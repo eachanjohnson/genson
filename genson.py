@@ -146,6 +146,7 @@ class BlogPost(object):
 		self.md = open(markdown, 'rU').read()
 		self.preview = self.get_preview()
 		self.title = self.get_title()
+		self.subtitle = self.get_subtitle()
 		self.slug = self.get_slug()
 		self.path = self.make_path()
 		self.parser = parser
@@ -271,6 +272,7 @@ class BlogPost(object):
 		# Insert post html
 		page = t.replace('//genson.insertpost//', self.post_html)
 		page = page.replace('//genson.title//', self.title)
+		page = page.replace('//genson.subtitle//', self.subtitle)
 		return page
 	
 	def get_title(self):
@@ -279,14 +281,29 @@ class BlogPost(object):
 		title = ''
 		with open(self.sourcefile, 'rU') as f:
 			for n, line in enumerate(f):
-				if n == 0:
-					# If on title line, use it to create URL slug
+				if n == 0 and line[0] == '#':
+					# If on title line, use it as title
 					title = [letter for letter in line.rstrip() if letter in letters]
 					title = ''.join(title)
 					break
 				else:
 					pass		
 		return title
+		
+	def get_subtitle(self):
+		"""
+		"""
+		subtitle = ''
+		with open(self.sourcefile, 'rU') as f:
+			for n, line in enumerate(f):
+				if n == 2 and line[0:2] == '##':
+					# If on title line, use it as subtitle
+					subtitle = [letter for letter in line.rstrip() if letter in letters]
+					subtitle = ''.join(subtitle)
+					break
+				else:
+					pass		
+		return subtitle
 		
 	def get_slug(self):
 		"""
@@ -385,6 +402,7 @@ class TableOfContents(object):
 			index[word] = [{
 				'id': id, 
 				'title': self.id_toc[id].title,
+				'subtitle': self.id_toc[id].subtitle,
 				'path': self.id_toc[id].path,
 				'preview_html': self.id_toc[id].preview_html,
 				'timestamp': self.id_toc[id].timestamp
@@ -473,6 +491,7 @@ class TableOfContents(object):
 		# Insert post html
 		page = t.replace('//genson.insertpost//', html)
 		page = page.replace('//genson.title//', self.name)
+		page = page.replace('//genson.subtitle//', '')
 		return page
 		
 	def write_out(self):
